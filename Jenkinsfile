@@ -1,49 +1,50 @@
 pipeline {
-  agent any     // Run on any available agent (Jenkins node)
+    agent any
 
-  environment {
-    JAR_NAME = 'weather-api-1.0-SNAPSHOT.jar'
-  }
+    environment {
+        IMAGE_NAME = 'weather-api:latest'
+        CONTAINER_NAME = 'weather-api'
+        APP_PORT = '8081'
+    }
 
-  stages {
-    stage('Checkout') {
-       steps {
-                git branch: 'main', url: 'https://github.com/Dehemi2001/Springboot_Weather_API.git'
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
             }
         }
 
-    stage('Build') {
-      steps {
-        sh 'mvn clean package -DskipTests'
-      }
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    docker.build("${IMAGE_NAME}", ".")
+                }
+            }
+        }
+
+        stage('Stop & Remove Old Container') {
+            steps {
+                script {
+                    sh "docker rm -f ${CONTAINER_NAME} || true"
+                }
+            }
+        }
+
+        stage('Run Docker Container') {
+            steps {
+                script {
+                    sh "docker run -d --name ${CONTAINER_NAME} -p ${APP_PORT}:8081 ${IMAGE_NAME}"
+                }
+            }
+        }
     }
 
-    stage('Test') {
-      steps {
-        sh 'mvn test'
-      }
+    post {
+        success {
+            echo "Weather API is running at http://localhost:${APP_PORT}"
+        }
+        failure {
+            echo "Pipeline failed. Check logs."
+        }
     }
-
-    stage('Deploy') {
-      steps {
-        echo "Killing old version if running..."
-        sh 'pkill -f $JAR_NAME || true'
-
-        echo "Starting app..."
-        sh 'nohup java -jar $WORKSPACE/target/weather-api-0.0.1-SNAPSHOT.jar > $WORKSPACE/app.log 2>&1 &'
-
-        echo "Running App .... "
-        sh 'mvn spring-boot:run'
-      }
-    }
-  }
-
-  post {
-    success {
-      echo 'Pipeline completed successfully!'
-    }
-    failure {
-      echo 'Pipeline failed. Check logs.'
-    }
-  }
 }

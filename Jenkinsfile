@@ -1,10 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'maven:3.9.6-eclipse-temurin-17'
-            args '-v /var/run/docker.sock:/var/run/docker.sock'
-        }
-    }
+    agent any
 
     environment {
         IMAGE_NAME = 'weather-api:latest'
@@ -22,7 +17,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh "docker build -t ${IMAGE_NAME} ."
+                    bat "docker build -t %IMAGE_NAME% ."
                 }
             }
         }
@@ -30,7 +25,7 @@ pipeline {
         stage('Stop & Remove Old Container') {
             steps {
                 script {
-                    sh "docker rm -f ${CONTAINER_NAME} || true"
+                    bat "docker rm -f %CONTAINER_NAME% || exit 0"
                 }
             }
         }
@@ -38,7 +33,7 @@ pipeline {
         stage('Run Docker Container') {
             steps {
                 script {
-                    sh "docker run -d --name ${CONTAINER_NAME} -p ${APP_PORT}:8081 ${IMAGE_NAME}"
+                    bat "docker run -d --name %CONTAINER_NAME% -p %APP_PORT%:8081 %IMAGE_NAME%"
                 }
             }
         }
@@ -46,7 +41,7 @@ pipeline {
 
     post {
         success {
-            echo "Weather API is running at http://localhost:${APP_PORT}"
+            echo "Weather API is running at http://localhost:${env.APP_PORT}"
         }
         failure {
             echo "Pipeline failed. Check logs."
